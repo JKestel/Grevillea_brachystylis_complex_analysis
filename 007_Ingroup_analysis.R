@@ -146,8 +146,6 @@ filter7c
 # // 122 genotypes,  9,805 binary SNPs, size: 74.1 Mb
 # 47006 (3.93 %) missing data
 
-#I'm happy with that
-
 data <- gl.recalc.metrics(filter7c)
 gl.report.rdepth(data)
 gl.smearplot(data)             
@@ -230,11 +228,11 @@ for (pop in pops) {
   index <- index + 1
 }
 
-gl2structure(strgl, outfile = "9k_Grevillea13032024.str", addcolumns = strgl$pop, exportMarkerNames = FALSE, outpath = ".")
+gl2structure(strgl, outfile = "9k_Grevillea.str", addcolumns = strgl$pop, exportMarkerNames = FALSE, outpath = ".")
 
 #Edit in Textpad8
 
-filename3 <- "9k_Grevillea_13032024.str"
+filename3 <- "9k_Grevillea_.str"
 filename3
 struct2geno(filename3, ploidy = 2, FORMAT=2, extra.col=2)
 
@@ -303,6 +301,8 @@ write.table(qvalues, "Grevillea_9k_k_values.txt", quote=FALSE)
 
 #                        DIVERSITY + F-sTATS for Grevillea 11/03/2024
 
+# Note: Pop-level diversity measures analysed using automated script known as Frankenstein 
+
 ######################################################################################
 
 # OPTIONAL: if needing to change the pop labels to another ind metrics slot, e.g. lineage, species, sex etc. Just don't forget to change back!
@@ -363,7 +363,7 @@ het_standard["rich"] <- richness_mean
 het_standard["rich.SE"] <- richness_se
 
 het_standard <- het_standard[, c("pop", "nInd", "nLoc", "polyLoc", "PCpoly", "rich", "rich.SE", "Ho", "Ho.SE", "He","He.SE", "FIS", "Fis.SE")]   #re-arrange columns in sensible order
-write.csv(het_standard, "Grevillea_9k_dataset_diversity_13032024.csv")  
+write.csv(het_standard, "Grevillea_9k_dataset_diversity.csv")  
 
 # estimate pairwise fst values
 fst <- gl.fst.pop(data_new, nboots=1000, percent=0.95)
@@ -388,7 +388,7 @@ final_fst <- reorder_mat(mat=sym_fst, order=order)
 final_fst
 
 # export fst values to csv file
-write.csv(final_fst, "Grevillea_pop_fst_Final_13032024.csv")
+write.csv(final_fst, "Grevillea_pop_fst_Final.csv")
 
 # basic heatmap of fst values
 npop <- nPop(data_new)
@@ -412,110 +412,6 @@ sink()
 
 
 
-#Script below works
-
-#####New analysis bits-------------------------------------------------------------------
-
-# estimates adjusted He, Ho ("autosomal heterozygosity") and standard error per population
-# requires a dataset with all secondary loci included so need a different dataset for this calculation!
-# also requires input of the number of invariant sites from gl.report.secondaries
-
-
-gl <- gl.read.dart(filename="Report_DGr23-8087_SNP_2.csv",
-                   ind.metafile="metadata_05032024_wo_clones.csv")
-
-class(gl)<- "genlight"  
-gl.report.rdepth(gl)
-
-#### Original Report
-
-# No. of loci = 175577 
-# No. of individuals = 146 
-# Minimum      :  2.5 
-# 1st quartile :  8 
-# Median       :  16.2 
-# Mean         :  21.41601 
-# 3r quartile  :  29.8 
-# Maximum      :  368.8 
-# Missing Rate Overall:  0.33 
-
-gl.report.rdepth(gl) # Yep, they match
-
-# FILTERS 2-6: locus filters on read depth, reproducibility, call rate, minor allele frequency and remove any monomorphic loci
-filter2 <- gl.filter.rdepth(gl, lower=5, upper=100, v=3)
-filter3 <- gl.filter.reproducibility(filter2, t=0.99, v=3)
-filter4 <- gl.filter.callrate(filter3, method="loc", threshold=0.80, v=3)
-filter5 <- gl.filter.maf(filter4, threshold=0.02, verbose=3)
-filter6 <- gl.filter.monomorphs(filter5, v=2)
-filter6
-
-# 146 genotypes,  13,201 binary SNPs, size: 76.2 Mb
-# 213726 (11.09 %) missing data
-
-gl.report.callrate(filter6, method="ind")
-filter7 <- gl.filter.callrate(filter6, method="ind", threshold=0.80)
-filter7
-
-# // 130 genotypes,  23,021 binary SNPs, size: 79.6 Mb
-# 221020 (7.39 %) missing data
-
-filter2b <- gl.filter.rdepth(filter7, lower=5, upper=90, v=3)
-filter4b <- gl.filter.callrate(filter2b, method="loc", threshold=0.85, v=3)
-filter4b
-
-# 130 genotypes,  21,448 binary SNPs, size: 78.9 Mb
-# 189414 (6.79 %) missing data
-
-gl.report.callrate(filter4b, method="ind")
-filter7b <- gl.filter.callrate(filter4b, method="ind", threshold=0.85)
-filter7b
-
-# 125 genotypes,  21,448 binary SNPs, size: 78.8 Mb
-# 171176 (6.38 %) missing data
-
-filter4c <- gl.filter.callrate(filter7b, method="loc", threshold=0.90, v=3)
-filter7c <- gl.filter.callrate(filter4c, method="ind", threshold=0.90)
-
-
-filter7c
-# 122 genotypes,  16,218 binary SNPs, size: 76.6 Mb
-# 85580 (4.33 %) missing data
-
-bob <- gl.recalc.metrics(filter7c)
-
-table(pop(bob))
-
-#remove populations with less than four individuals
-
-bob2 <- gl.drop.pop(bob, pop.list=c("BLA9", "BRO4","GRA2","TYP3","TYP6"))
-
-table(pop(bob2))
-
-gl.report.secondaries(bob2)
-
-?gl.report.heterozygosity
-
-het_stats_adj <- gl.report.heterozygosity(bob2, method="pop", n.invariant=3509835)
-het_adjusted <- cbind(het_stats_adj[, c(1, 2, 3, 10, 11, 16, 17)])
-
-ho_adj_se <- sapply(het_adjusted$Ho.adjSD, function(x)x/sqrt(het_adjusted$nLoc))
-ho_adj_se <- ho_adj_se[1,]
-het_adjusted["Ho.adj.se"] <- ho_adj_se
-
-he_adj_se <- sapply(het_adjusted$He.adjSD, function(x)x/sqrt(het_adjusted$nLoc))
-he_adj_se <- he_adj_se[1,]
-het_adjusted["He.adj.se"] <- he_adj_se
-
-names(het_adjusted)
-# [1] "pop"       "nInd"      "nLoc"      "Ho.adj"    "Ho.adjSD"  "He.adj"    "He.adjSD"  "Ho.adj.se"
-# [9] "He.adj.se"
-
-write.csv(het_adjusted, "grevillea_9K_subset_heterozygosity_adj_13032024.csv")
-
-#Haven't exported to genalex
-
-# output data as genalex input file to run AMOVA/IBD/SPATIALAUTOCORRELATION if wanted (I prefer genalex to dartR for these)
-gl2genalex(data, outfile="GNX_TETRA_13k.csv", outpath=getwd())
 
 #-----------------------------------------------------------------------------------------
 #Map to interpret
@@ -525,7 +421,7 @@ gl.map.interactive(bob, ind.circle.cols="black")
 
 ##12/03/2024
 
-# next, we need to work out what samples belong in what lineage to inform the Fst heatmap.
+# next, we need to work out what samples belong in what lineage.
 # To do this, I am going to use another program called Splitstree. The following code is
 # to export the SNP data into a compatible format that plays nicely with this software.
 
@@ -547,17 +443,6 @@ isfar <- get(load('c:/Desktop/Stump/004_Data/001_SNP_Geno_G_brachystylis/Grevill
 class(a)<- "genlight"  
 gl.report.rdepth(a)
 
-#Error in readChar(con, 5L, useBytes = TRUE) : cannot open the connection
-# In addition: Warning message:
-#   In readChar(con, 5L, useBytes = TRUE) :
-#   cannot open compressed file 'c:/Desktop/Stump/004_Data/001_SNP_Geno_G_brachystylis/Grevillea_9kloci.Rdata', 
-#   probable reason 'No such file or directory'
-
-#Go back to the top and recreate the data file with 9k snps
-
-#done, now
-
-
 data_fasta <- gl2fasta(data2, method=3, outfile="Grev_9k.fas", outpath=getwd())
 filename = "Grev_9k.fas"
 
@@ -573,102 +458,6 @@ writeLines(as.character(nInd(data2)), con = outfile)
 write.table(genpofad_dist, file = outfile, sep = " ", append=TRUE, col.names=FALSE, quote=FALSE)
 
 close(outfile)
-
-############################################################################
-
-# Bubble plot script - a new way to display He and Ho
-
-###########################################################################
-
-library(ggplot2)
-library(dplyr)
-
-#Snp data
-
-View(het_standard)
-head(het_standard)
-het_standard %>%
-  arrange(desc(Ho)) %>%
-  mutate(pop = factor(pop, pop)) %>%
-  ggplot(aes(x=He, y= Ho, size=FIS, color=pop)) +
-  geom_point(alpha=0.5) +
-  theme_classic() +
-  scale_size(range = c(.1, 24), name="FIS")
-
-
-#autsomal data
-
-names(het_adjusted)
-
-# [1] "pop"       "nInd"      "nLoc"      "Ho.adj"    "Ho.adjSD" 
-# [6] "He.adj"    "He.adjSD"  "Ho.adj.se" "He.adj.se"
-
-b <- het_adjusted %>%
-  arrange(desc(Ho.adj)) %>%
-  mutate(pop = factor(pop, pop)) %>%
-  ggplot(aes(x=He.adj, y= Ho.adj, size=Ho.adj, color=pop)) +
-  geom_point(alpha=0.5) +
-  theme_classic() +
-  scale_size(range = c(.1, 24), name="Observed Heterozygosity (Ho)")
-  
-
-library(ggpubr)
-
-ggarrange(a,b, ncol = 2, nrow = 1, common.legend = TRUE)
-
-###############################################################################
-
-## Pie map from structure output
-
-###############################################################################
-a <- bob2@other$ind.metrics$id
-b <- bob2@other$ind.metrics$lat
-c <- bob2@other$ind.metrics$lon
-
-d <- cbind(a,b,c)
-View(d)
-
-write.csv(d, "STR_LAT_LON.csv")
-
-#Input files: pie plot details with coordinates; format including three parts:
-# 1. individuals; 2. longitude and latitudes; 3. pie proportions
-
-# e.g. 
-
-#INDI LON  LAT   P1     P2       P3
-# 1   4.2  50   0.02  0.004     0.97
-
-
-library(reshape)
-library(rworldmap)
-library(rworldxtra)
-library(mapdata)
-library(sf)
-?mapPies
-
-K3 <- read.csv("010_Pie_in_the_sky.csv", sep = ",", header = T)
-?mapPies
-
-K3 <- as.data.frame(K3)
-
-?getMap
-
-
-lon_min <- 115
-lon_max <- 118
-lat_min <- -31
-lat_max <- -31
-
-map <- fortify(map("worldHires", 
-                         xlim = c(lon_min, lon_max), 
-                         ylim = c(lat_min, lat_max), 
-                         fill = T, plot = F))
-
-?mapPies
-mapPies(dF = K3, nameX="LON", nameY= "LAT", nameZs=c("V1","V2", "V3", "V4", "V5"),
-        zColours=c("steelblue2", "grey0", "palegreen4", "yellow3", "orange3"),
-        oceanCol = "lightblue", landCol = "lightgrey", mapRegion = "world", 
-        xlim = c(110, 130), ylim = c(-20, 0))
 
 
 
